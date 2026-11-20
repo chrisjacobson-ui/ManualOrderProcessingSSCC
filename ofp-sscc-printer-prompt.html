@@ -422,7 +422,8 @@
             </div>
             <div class="footer-printer-row">
               <select class="form-select" id="results-printer-select" onchange="onResultsPrinterChange()">
-                <option value="WHOUSE-LABEL-01">WHOUSE-LABEL-01</option>
+                <option value="none">Do not print</option>
+                <option value="WHOUSE-LABEL-01" selected>WHOUSE-LABEL-01</option>
                 <option value="WHOUSE-LABEL-02">WHOUSE-LABEL-02</option>
                 <option value="DOCK-LABEL-01">DOCK-LABEL-01</option>
                 <option value="DOCK-LABEL-02">DOCK-LABEL-02</option>
@@ -513,7 +514,8 @@
           SSCC Label Printer
         </div>
         <select class="form-select" id="proc-profile-printer-select" style="min-width:260px;" onchange="onModalPrinterChange('proc-profile-printer-select','proc-profile-process-btn')">
-          <option value="WHOUSE-LABEL-01">WHOUSE-LABEL-01</option>
+          <option value="none">Do not print</option>
+          <option value="WHOUSE-LABEL-01" selected>WHOUSE-LABEL-01</option>
           <option value="WHOUSE-LABEL-02">WHOUSE-LABEL-02</option>
           <option value="DOCK-LABEL-01">DOCK-LABEL-01</option>
           <option value="DOCK-LABEL-02">DOCK-LABEL-02</option>
@@ -770,7 +772,7 @@
   /* ==================== Submit (process) ==================== */
   function onModalPrinterChange(selectId, btnId) {
     const val = document.getElementById(selectId).value;
-    document.getElementById(btnId).disabled = !val;
+    document.getElementById(btnId).disabled = !val; // 'none' is truthy — Do not print is a valid selection
   }
 
   function onResultsPrinterChange() {
@@ -801,8 +803,12 @@
   }
 
   function showDone(printer) {
-    document.getElementById('done-printer-detail').textContent =
-      printer ? 'SSCC labels sent to: ' + printer : '';
+    const detail = document.getElementById('done-printer-detail');
+    if (!printer || printer === 'none') {
+      detail.textContent = printer === 'none' ? 'SSCC labels were not printed for this run.' : '';
+    } else {
+      detail.textContent = 'SSCC labels sent to: ' + printer;
+    }
     document.getElementById('modal-done').classList.remove('hidden');
   }
 
