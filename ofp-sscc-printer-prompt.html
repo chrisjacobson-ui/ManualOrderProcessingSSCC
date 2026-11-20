@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFP — SSCC Printer Prompt Prototype</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #333; background: #f0f0f0; }
+    .app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Prototype info bar */
+    .proto-bar { background: #fff8e1; border-bottom: 2px solid #ffe082; padding: 7px 24px; font-size: 12px; color: #795548; display: flex; align-items: center; gap: 24px; flex-shrink: 0; flex-wrap: wrap; }
+    .proto-bar-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+    .proto-bar-fields { display: flex; gap: 18px; flex-wrap: wrap; }
+    .proto-field { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .check-yes { color: #2e7d32; font-weight: 700; }
+    .proto-bar-note { margin-left: auto; font-style: italic; color: #a1887f; white-space: nowrap; }
+
+    /* App header */
+    .app-header { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 24px; height: 50px; display: flex; align-items: center; flex-shrink: 0; gap: 8px; }
+    .back-arrow { color: #f08020; font-size: 18px; cursor: pointer; line-height: 1; padding-right: 2px; }
+    .header-title { font-size: 17px; font-weight: 500; }
+
+    /* Tabs */
+    .tab-bar { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 0 24px; display: flex; flex-shrink: 0; }
+    .tab { padding: 11px 14px 10px; font-size: 14px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; }
+    .tab.active { color: #f08020; border-bottom-color: #f08020; font-weight: 500; }
+    .tab:hover:not(.active) { color: #333; }
+
+    /* Main layout */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Left nav */
+    .left-nav { width: 185px; background: #fff; border-right: 1px solid #e0e0e0; padding: 10px 0; flex-shrink: 0; }
+    .left-nav.hidden { display: none; }
+    .nav-section-label { padding: 10px 16px 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.8px; color: #aaa; text-transform: uppercase; }
+    .nav-item { padding: 7px 16px; cursor: pointer; font-size: 13px; color: #444; }
+    .nav-item:hover { background: #f5f5f5; }
+    .nav-item.active { color: #f08020; font-weight: 500; }
+
+    /* Content */
+    .content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+    .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+    .screen.active { display: flex; }
+
+    /* Screen header */
+    .screen-top { background: #fff; padding: 16px 24px 0; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+    .screen-title { font-size: 20px; font-weight: 400; margin-bottom: 10px; }
+    .search-row { margin-bottom: 12px; position: relative; display: inline-flex; align-items: center; }
+    .search-input { border: 1px solid #ddd; border-radius: 4px; padding: 6px 10px 6px 28px; font-size: 13px; width: 240px; outline: none; }
+    .search-input:focus { border-color: #f08020; }
+    .search-icon { position: absolute; left: 9px; color: #bbb; font-size: 12px; pointer-events: none; }
+
+    /* Table */
+    .table-wrap { flex: 1; overflow-y: auto; background: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #fff; padding: 9px 16px; text-align: left; font-size: 12px; font-weight: 600; color: #666; border-bottom: 2px solid #e0e0e0; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+    td { padding: 11px 16px; border-bottom: 1px solid #f0f0f0; background: #fff; vertical-align: middle; }
+    tr:hover td { background: #fafafa; }
+    .link { color: #f08020; cursor: pointer; font-weight: 500; }
+    .link:hover { text-decoration: underline; }
+
+    /* Profile action buttons */
+    .action-btn-row { display: flex; gap: 6px; justify-content: flex-end; }
+    .btn-action { background: #fff; border: 1px solid #ccc; padding: 5px 11px; border-radius: 4px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: #444; }
+    .btn-action:hover { background: #f5f5f5; }
+    .sscc-row td { background: #fffdf5 !important; }
+    .sscc-badge { font-size: 10px; background: #fff3cd; color: #795548; border: 1px solid #ffe082; border-radius: 10px; padding: 1px 7px; margin-left: 6px; vertical-align: middle; font-weight: 600; white-space: nowrap; }
+
+    /* Orders tab */
+    .toolbar { background: #fff; border-bottom: 1px solid #e0e0e0; padding: 8px 24px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .rows-selected { font-size: 13px; font-weight: 500; }
+    .actions-dropdown { position: relative; }
+    .actions-toggle { background: #fff; border: 1px solid #ccc; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+    .actions-toggle:hover { background: #f5f5f5; }
+    .dropdown-caret { font-size: 9px; color: #888; }
+    .actions-menu { position: absolute; top: calc(100% + 3px); left: 0; background: #fff; border: 1px solid #e0e0e0; border-radius: 5px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); z-index: 100; min-width: 155px; }
+    .actions-menu.hidden { display: none; }
+    .actions-menu-label { padding: 8px 14px 3px; font-size: 10px; font-weight: 700; color: #bbb; text-transform: uppercase; letter-spacing: 0.5px; }
+    .actions-menu-item { padding: 8px 14px; cursor: pointer; font-size: 13px; color: #333; }
+    .actions-menu-item:hover { background: #f5f5f5; }
+    .ml-auto { margin-left: auto; }
+
+    input[type="checkbox"] { accent-color: #f08020; width: 14px; height: 14px; cursor: pointer; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-new { background: #e3f2fd; color: #1565c0; }
+
+    /* Pagination */
+    .pagination-bar { background: #fff; border-top: 1px solid #e0e0e0; padding: 7px 24px; display: flex; align-items: center; justify-content: flex-end; font-size: 12px; color: #666; gap: 8px; flex-shrink: 0; }
+    .orange { color: #f08020; }
+    .page-btn { background: #fff; border: 1px solid #ddd; padding: 3px 7px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+
+    /* Buttons */
+    .btn-primary { background: #f08020; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: 500; }
+    .btn-primary:hover { background: #d9701a; }
+    .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; padding: 7px 18px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+    .btn-secondary:hover { background: #f5f5f5; }
+    .btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+    .btn-outline:hover { background: #f5f5f5; }
+
+    /* Results screen */
+    .results-header { background: #fff; padding: 10px 24px 11px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+    .breadcrumb { font-size: 12px; color: #999; }
+    .breadcrumb strong { color: #333; }
+    .results-title { font-size: 18px; font-weight: 400; margin-top: 3px; }
+    .results-body { flex: 1; overflow-y: auto; padding: 20px 24px; background: #f5f5f5; }
+    .results-stats { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 18px 20px; margin-bottom: 18px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 20px; }
+    .stat-label { font-size: 12px; color: #888; }
+    .stat-value { font-size: 16px; font-weight: 500; color: #222; margin-top: 2px; }
+    .results-orders-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+    .results-orders-title { padding: 12px 20px; border-bottom: 1px solid #e0e0e0; font-size: 13px; font-weight: 600; color: #555; }
+
+    /* Results footer */
+    .results-footer { background: #fff; border-top: 2px solid #e0e0e0; padding: 14px 24px; display: flex; align-items: center; flex-shrink: 0; gap: 20px; }
+    .footer-printer { display: flex; flex-direction: column; gap: 4px; }
+    .footer-printer-label { font-size: 11px; font-weight: 600; color: #777; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 5px; }
+    .footer-printer-row { display: flex; align-items: center; gap: 10px; }
+    .footer-printer-note { font-size: 11px; color: #999; }
+    .footer-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+    /* Form elements */
+    .form-select { border: 1px solid #ddd; border-radius: 4px; padding: 7px 30px 7px 10px; font-size: 13px; outline: none; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M5 6L0 0h10z' fill='%23888'/%3E%3C/svg%3E") no-repeat right 10px center; appearance: none; cursor: pointer; min-width: 230px; }
+    .form-select:focus { border-color: #f08020; outline: none; }
+    .form-select.empty { color: #aaa; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.42); z-index: 200; display: flex; align-items: center; justify-content: center; }
+    .modal-overlay.hidden { display: none; }
+    .modal { background: #fff; border-radius: 6px; width: 480px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.22); }
+    .modal-header { padding: 18px 24px 14px; }
+    .modal-header h3 { font-size: 16px; font-weight: 500; }
+    .modal-body { padding: 2px 24px 20px; }
+    .modal-footer { padding: 13px 24px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; gap: 10px; }
+
+    .modal-info-row { display: flex; padding: 4px 0; font-size: 13px; }
+    .modal-info-label { width: 155px; font-weight: 600; color: #666; flex-shrink: 0; }
+    .modal-info-value { color: #333; }
+    .modal-divider { border: none; border-top: 1px solid #e0e0e0; margin: 14px 0; }
+    .modal-section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #333; }
+
+    .radio-group { display: flex; flex-direction: column; gap: 8px; }
+    .radio-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+    .radio-row input[type="radio"] { accent-color: #f08020; }
+    .order-count-input { border: 1px solid #ddd; border-radius: 4px; padding: 6px 10px; font-size: 13px; outline: none; width: 100%; margin-top: 6px; }
+    .order-count-input:focus { border-color: #f08020; }
+
+    /* Printer card inside modal */
+    .printer-card { background: #f7f9fb; border: 1px solid #dde4ea; border-radius: 5px; padding: 9px 12px; margin-top: 12px; }
+    .printer-card-title { font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+    .printer-card-title .printer-icon { font-size: 12px; }
+    .printer-card .form-select { font-size: 12px; padding: 5px 28px 5px 9px; min-width: 220px; }
+    .printer-card-note { font-size: 11px; color: #999; margin-top: 5px; }
+
+    /* Simple confirm modal */
+    .confirm-row { display: flex; font-size: 13px; padding: 3px 0; }
+    .confirm-label { font-weight: 600; color: #555; width: 125px; flex-shrink: 0; }
+    .confirm-text { font-size: 13px; color: #444; margin-top: 8px; }
+
+    /* Done modal */
+    .done-icon { font-size: 36px; text-align: center; padding: 20px 0 10px; }
+    .done-title { font-size: 16px; font-weight: 500; text-align: center; margin-bottom: 6px; }
+    .done-detail { font-size: 13px; color: #666; text-align: center; }
+
+    .dash { color: #ccc; }
+    .hidden { display: none !important; }
+
+    /* Info callout */
+    .info-callout { background: #e8f4fd; border: 1px solid #b3d7f5; border-radius: 5px; padding: 10px 14px; font-size: 12px; color: #1a5276; display: flex; gap: 8px; align-items: flex-start; margin-bottom: 14px; }
+    .info-callout-icon { flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Prototype info bar -->
+  <div class="proto-bar">
+    <span class="proto-bar-label">Prototype scenario</span>
+    <div class="proto-bar-fields">
+      <span class="proto-field">Profile: <strong>Apex Test B2B</strong></span>
+      <span class="proto-field"><span class="check-yes">✓</span> Generate SSCC Number</span>
+      <span class="proto-field"><span class="check-yes">✓</span> Print SSCC Labels</span>
+      <span class="proto-field"><span class="check-yes">✓</span> Prompt for Printer at Processing Time</span>
+      <span class="proto-field">Configured printer: <strong>WHOUSE-LABEL-01</strong></span>
+    </div>
+    <span class="proto-bar-note">SSCC printer prompt shown for OFP Profile processing only (not Orders tab)</span>
+  </div>
+
+  <!-- App header -->
+  <div class="app-header">
+    <span class="back-arrow">&#8592;</span>
+    <span class="header-title">Order Processing</span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab active" id="tab-profiles" onclick="switchTab('profiles')">Profiles</div>
+    <div class="tab" id="tab-orders" onclick="switchTab('orders')">Orders</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Left nav (Profiles tab only) -->
+    <div class="left-nav" id="left-nav">
+      <div class="nav-section-label">Profiles</div>
+      <div class="nav-item active">All Profiles</div>
+      <div class="nav-section-label">Categories</div>
+      <div class="nav-item">Ecommerce</div>
+      <div class="nav-item">Retail</div>
+    </div>
+
+    <!-- Content area -->
+    <div class="content">
+
+      <!-- ===== SCREEN: PROFILES ===== -->
+      <div class="screen active" id="screen-profiles">
+        <div class="screen-top">
+          <div class="screen-title">All Profiles</div>
+          <div class="search-row">
+            <span class="search-icon">&#128269;</span>
+            <input class="search-input" type="text" placeholder="Search by Name">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Facility</th>
+                <th>Priority</th>
+                <th>Scheduled</th>
+                <th>Last Processed</th>
+                <th>Outstanding Orders</th>
+                <th>Outstanding Work Groups</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="link">Apex Shopify – Ecomm</span></td>
+                <td>GOLD1</td><td>1</td><td>Manual</td>
+                <td>2026-11-03 15:12</td><td>312</td><td>123</td>
+                <td>
+                  <div class="action-btn-row">
+                    <button class="btn-action" onclick="openModal('modal-preview-profile', 'Apex Shopify – Ecomm', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h4"/></svg>
+                      Preview
+                    </button>
+                    <button class="btn-action" onclick="openModal('modal-process-profile', 'Apex Shopify – Ecomm', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><path d="M4 2l9 6-9 6V2z"/></svg>
+                      Process
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="sscc-row">
+                <td>
+                  <span class="link">Apex Test B2B</span>
+                  <span class="sscc-badge">SSCC</span>
+                </td>
+                <td>GOLD1</td><td>5</td><td>Manual</td>
+                <td>2026-11-06 12:44</td><td>10</td><td>10</td>
+                <td>
+                  <div class="action-btn-row">
+                    <button class="btn-action" onclick="openModal('modal-preview-profile', 'Apex Test B2B', true)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h4"/></svg>
+                      Preview
+                    </button>
+                    <button class="btn-action" onclick="openModal('modal-process-profile', 'Apex Test B2B', true)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><path d="M4 2l9 6-9 6V2z"/></svg>
+                      Process
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="link">DEPWMS-6334</span></td>
+                <td>GOLD1</td><td>1</td><td>Manual</td>
+                <td class="dash">--</td><td class="dash">--</td><td class="dash">--</td>
+                <td>
+                  <div class="action-btn-row">
+                    <button class="btn-action" onclick="openModal('modal-preview-profile', 'DEPWMS-6334', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h4"/></svg>
+                      Preview
+                    </button>
+                    <button class="btn-action" onclick="openModal('modal-process-profile', 'DEPWMS-6334', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><path d="M4 2l9 6-9 6V2z"/></svg>
+                      Process
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><span class="link">SUP-525</span></td>
+                <td>GOLD1</td><td>1</td><td>Manual</td>
+                <td>2026-10-14 11:35</td><td class="dash">--</td><td class="dash">--</td>
+                <td>
+                  <div class="action-btn-row">
+                    <button class="btn-action" onclick="openModal('modal-preview-profile', 'SUP-525', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M5 7h6M5 10h4"/></svg>
+                      Preview
+                    </button>
+                    <button class="btn-action" onclick="openModal('modal-process-profile', 'SUP-525', false)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12"><path d="M4 2l9 6-9 6V2z"/></svg>
+                      Process
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== SCREEN: ORDERS ===== -->
+      <div class="screen" id="screen-orders">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <span class="btn-outline">-Default &#9660;</span>
+            <span class="btn-outline">&#9881;</span>
+          </div>
+          <span id="orders-selected-label" class="rows-selected hidden">3 Rows Selected</span>
+          <div class="actions-dropdown" id="actions-dropdown">
+            <button class="actions-toggle hidden" id="actions-toggle-btn" onclick="toggleActionsMenu()">
+              Actions <span class="dropdown-caret">&#9660;</span>
+            </button>
+            <div class="actions-menu hidden" id="actions-menu">
+              <div class="actions-menu-label">Actions</div>
+              <div class="actions-menu-item" onclick="openModal('modal-preview-orders', '', true)">Preview Orders</div>
+              <div class="actions-menu-item" onclick="openModal('modal-process-orders', '', true)">Process Orders</div>
+            </div>
+          </div>
+          <div class="ml-auto">
+            <button class="btn-outline">&#8801; Configure</button>
+          </div>
+        </div>
+        <div class="table-wrap" onclick="closeActionsMenu()">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px;"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>
+                <th>Type</th>
+                <th>Number</th>
+                <th>Order Status</th>
+                <th>Created Date</th>
+                <th>Other Reference Number</th>
+                <th>Custom Attribute 1</th>
+                <th>Weight</th>
+                <th>Order Source</th>
+                <th>Business Unit – Name</th>
+              </tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <!-- Rows injected by JS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-bar">
+          1 – 100 of <span class="orange">Over 100</span>
+          &nbsp;<button class="page-btn">&#8249;</button>
+          <button class="page-btn">&#8250;</button>
+        </div>
+      </div>
+
+      <!-- ===== SCREEN: RESULTS ===== -->
+      <div class="screen" id="screen-results">
+        <div class="results-header">
+          <div class="breadcrumb">Profile Name: <strong id="results-profile-name">Apex Test B2B</strong></div>
+          <div class="results-title">Order Processing Preview</div>
+        </div>
+        <div class="results-body">
+          <div class="results-stats">
+            <div class="stats-grid">
+              <div><div class="stat-label">Orders Examined</div><div class="stat-value">10</div></div>
+              <div><div class="stat-label">Cancelled Order Lines</div><div class="stat-value">0</div></div>
+              <div><div class="stat-label">Pick Tasks</div><div class="stat-value">18</div></div>
+              <div><div class="stat-label">Pallet Builds</div><div class="stat-value">6</div></div>
+              <div><div class="stat-label">Orders to Release</div><div class="stat-value">8</div></div>
+              <div><div class="stat-label">Pick Waves</div><div class="stat-value">1</div></div>
+              <div><div class="stat-label">Replenishment Tasks</div><div class="stat-value">0</div></div>
+              <div><div class="stat-label">Full Pallet Picks</div><div class="stat-value">2</div></div>
+              <div><div class="stat-label">Backorders</div><div class="stat-value">2</div></div>
+              <div><div class="stat-label">Work Groups</div><div class="stat-value">8</div></div>
+              <div><div class="stat-label">Total Units</div><div class="stat-value">42</div></div>
+              <div><div class="stat-label">Total Containers</div><div class="stat-value">8</div></div>
+            </div>
+          </div>
+          <div class="results-orders-card">
+            <div class="results-orders-title">Orders to Release (8)</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Ship Via</th>
+                  <th>Order Source</th>
+                  <th>Current Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="link">3101</td><td>LTL – FedEx Freight</td><td>SPS</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3102</td><td>LTL – FedEx Freight</td><td>SPS</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3103</td><td>LTL – UPS Freight</td><td>SPS</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3104</td><td>LTL – UPS Freight</td><td>SPS</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3105</td><td>LTL – FedEx Freight</td><td>SPS</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3106</td><td>LTL – FedEx Freight</td><td>EDI</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3107</td><td>LTL – UPS Freight</td><td>EDI</td><td><span class="badge badge-new">Released</span></td></tr>
+                <tr><td class="link">3108</td><td>LTL – FedEx Freight</td><td>EDI</td><td><span class="badge badge-new">Released</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Footer with SSCC printer section (OFP Profile path only) -->
+        <div class="results-footer">
+          <div class="footer-printer" id="results-footer-printer">
+            <div class="footer-printer-label">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#777" stroke-width="1.5"><rect x="3" y="1" width="10" height="4" rx="1"/><path d="M3 5H1a1 1 0 00-1 1v6a1 1 0 001 1h2v3h10v-3h2a1 1 0 001-1V6a1 1 0 00-1-1h-2"/><rect x="3" y="10" width="10" height="5" rx="1"/><circle cx="13" cy="8" r="0.75" fill="#777" stroke="none"/></svg>
+              SSCC Label Printer
+            </div>
+            <div class="footer-printer-row">
+              <select class="form-select" id="results-printer-select" onchange="onResultsPrinterChange()">
+                <option value="WHOUSE-LABEL-01">WHOUSE-LABEL-01</option>
+                <option value="WHOUSE-LABEL-02">WHOUSE-LABEL-02</option>
+                <option value="DOCK-LABEL-01">DOCK-LABEL-01</option>
+                <option value="DOCK-LABEL-02">DOCK-LABEL-02</option>
+              </select>
+              <span class="footer-printer-note">Override the configured printer for this run only.</span>
+            </div>
+          </div>
+          <div class="footer-actions">
+            <button class="btn-secondary" onclick="cancelResults()">Cancel</button>
+            <button class="btn-primary" id="results-process-btn" onclick="submitResults()">Process Orders</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+
+<!-- ===== MODAL: PREVIEW FROM PROFILE ===== -->
+<div class="modal-overlay hidden" id="modal-preview-profile">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Preview Order Fulfillment Profile</h3>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info-row"><span class="modal-info-label">Profile Name:</span><span class="modal-info-value" id="prev-profile-name">—</span></div>
+      <div class="modal-info-row"><span class="modal-info-label">Profile Description:</span><span class="modal-info-value" id="prev-profile-desc">—</span></div>
+      <div class="modal-info-row"><span class="modal-info-label">Profile Facility:</span><span class="modal-info-value">GOLD1</span></div>
+      <hr class="modal-divider">
+      <div class="modal-section-title">Orders to Preview</div>
+      <div class="radio-group">
+        <label class="radio-row">
+          <input type="radio" name="prev-order-count" value="ofp" checked>
+          Preview Orders Based on OFP Number of Orders to Allocate
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="prev-order-count" value="certain">
+          Preview a Certain Number of Orders
+        </label>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="modal-info-label" style="font-size:12px;color:#888;">Number of Orders to Preview</div>
+        <input class="order-count-input" type="number" placeholder="" style="width:200px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-preview-profile')">Cancel</button>
+      <button class="btn-primary" onclick="goToResults('modal-preview-profile')">Preview</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MODAL: PROCESS FROM PROFILE ===== -->
+<div class="modal-overlay hidden" id="modal-process-profile">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Process Order Fulfillment Profile</h3>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info-row"><span class="modal-info-label">Profile Name:</span><span class="modal-info-value" id="proc-profile-name">—</span></div>
+      <div class="modal-info-row"><span class="modal-info-label">Profile Description:</span><span class="modal-info-value" id="proc-profile-desc">—</span></div>
+      <div class="modal-info-row"><span class="modal-info-label">Profile Facility:</span><span class="modal-info-value">GOLD1</span></div>
+      <hr class="modal-divider">
+      <div class="modal-section-title">Orders to Process</div>
+      <div class="radio-group">
+        <label class="radio-row">
+          <input type="radio" name="proc-order-count" value="ofp" checked>
+          Process Orders Based on OFP Number of Orders to Allocate
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="proc-order-count" value="certain">
+          Process a Certain Number of Orders
+        </label>
+      </div>
+      <div style="margin-top:8px;">
+        <div class="modal-info-label" style="font-size:12px;color:#888;">Number of Orders to Process</div>
+        <input class="order-count-input" type="number" placeholder="" style="width:200px;">
+      </div>
+
+      <!-- SSCC Printer section — only shown for SSCC-enabled profiles -->
+      <div class="printer-card" id="proc-profile-printer-card">
+        <div class="printer-card-title">
+          <span class="printer-icon">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#555" stroke-width="1.5"><rect x="3" y="1" width="10" height="4" rx="1"/><path d="M3 5H1a1 1 0 00-1 1v6a1 1 0 001 1h2v3h10v-3h2a1 1 0 001-1V6a1 1 0 00-1-1h-2"/><rect x="3" y="10" width="10" height="5" rx="1"/><circle cx="13" cy="8" r="0.75" fill="#555" stroke="none"/></svg>
+          </span>
+          SSCC Label Printer
+        </div>
+        <select class="form-select" id="proc-profile-printer-select" style="min-width:260px;" onchange="onModalPrinterChange('proc-profile-printer-select','proc-profile-process-btn')">
+          <option value="WHOUSE-LABEL-01">WHOUSE-LABEL-01</option>
+          <option value="WHOUSE-LABEL-02">WHOUSE-LABEL-02</option>
+          <option value="DOCK-LABEL-01">DOCK-LABEL-01</option>
+          <option value="DOCK-LABEL-02">DOCK-LABEL-02</option>
+        </select>
+        <div class="printer-card-note">Override the configured printer for SSCC labels for this run only.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-process-profile')">Cancel</button>
+      <button class="btn-primary" id="proc-profile-process-btn" onclick="submitProcess('modal-process-profile', 'proc-profile-printer-select')">Process</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MODAL: PREVIEW SELECTED ORDERS ===== -->
+<div class="modal-overlay hidden" id="modal-preview-orders">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Preview Selected Orders for Processing</h3>
+    </div>
+    <div class="modal-body" style="padding-top:14px;">
+      <div class="confirm-row"><span class="confirm-label">Orders Selected:</span><span>3</span></div>
+      <p class="confirm-text">Are you sure you want to preview the selected orders?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-preview-orders')">Cancel</button>
+      <button class="btn-primary" onclick="goToResults('modal-preview-orders')">Preview</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MODAL: PROCESS SELECTED ORDERS ===== -->
+<div class="modal-overlay hidden" id="modal-process-orders">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Process Selected Orders</h3>
+    </div>
+    <div class="modal-body" style="padding-top:14px;">
+      <div class="confirm-row"><span class="confirm-label">Orders Selected:</span><span>3</span></div>
+      <p class="confirm-text">Are you sure you want to process the selected orders?</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-process-orders')">Cancel</button>
+      <button class="btn-primary" id="proc-orders-process-btn" onclick="submitProcess('modal-process-orders', null)">Process</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MODAL: DONE ===== -->
+<div class="modal-overlay hidden" id="modal-done">
+  <div class="modal" style="width:380px;">
+    <div class="modal-body" style="padding:0 24px 20px;">
+      <div class="done-icon">&#10003;</div>
+      <div class="done-title">Orders Processed Successfully</div>
+      <p class="done-detail" id="done-detail">Work groups and pick tasks have been created and released to the warehouse.</p>
+      <p class="done-detail" id="done-printer-detail" style="margin-top:8px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeDone()">OK</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== MODAL: NO PRINTER CONFIGURED ===== -->
+<div class="modal-overlay hidden" id="modal-no-printer">
+  <div class="modal" style="width:400px;">
+    <div class="modal-header">
+      <h3>No Printer Configured</h3>
+    </div>
+    <div class="modal-body" style="padding-top:14px;">
+      <div class="info-callout" style="background:#fff3cd;border-color:#ffe082;color:#795548;">
+        <span class="info-callout-icon">&#9888;</span>
+        <span>SSCC labels are enabled for this profile but no printer is selected. Select a printer to continue, or update the OFP configuration to set a default.</span>
+      </div>
+      <select class="form-select" id="no-printer-select" style="min-width:100%;width:100%;" onchange="onNoPrinterChange()">
+        <option value="">— Select a printer —</option>
+        <option value="WHOUSE-LABEL-01">WHOUSE-LABEL-01</option>
+        <option value="WHOUSE-LABEL-02">WHOUSE-LABEL-02</option>
+        <option value="DOCK-LABEL-01">DOCK-LABEL-01</option>
+        <option value="DOCK-LABEL-02">DOCK-LABEL-02</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-no-printer')">Cancel</button>
+      <button class="btn-primary" id="no-printer-confirm-btn" disabled onclick="confirmNoPrinter()">Process Orders</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  /* ==================== State ==================== */
+  const PROFILE_DATA = {
+    'Apex Shopify – Ecomm': { desc: 'Ecomm orders from Shopify sales channel', sscc: false },
+    'Apex Test B2B':        { desc: 'B2B orders via SPS/EDI channels',          sscc: true  },
+    'DEPWMS-6334':          { desc: 'Wave demand replenishment profile',         sscc: false },
+    'SUP-525':              { desc: 'Supplier portal orders',                    sscc: false },
+  };
+
+  const ORDERS = [
+    { num: '2136', type: 'Sales Order', status: 'New', created: '2026-11-06 12:27', attr: 'B2B',   source: 'SPS', bu: 'DEMOSAND3PL', checked: true  },
+    { num: '2129', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'B2B',   source: 'SPS', bu: 'DEMOSAND3PL', checked: true  },
+    { num: '2128', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'B2B',   source: 'SPS', bu: 'DEMOSAND3PL', checked: true  },
+    { num: '2127', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2126', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2125', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2124', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2123', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2122', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2121', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2120', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+    { num: '2119', type: 'Sales Order', status: 'New', created: '2026-11-03 15:15', attr: 'Ecomm', source: 'Shopify', bu: 'DEMOSAND3PL', checked: false },
+  ];
+
+  let currentTab = 'profiles';
+  let resultSource = 'profiles'; // which tab the results screen was opened from
+
+  /* ==================== Init ==================== */
+  renderOrders();
+  updateOrdersToolbar();
+
+  function renderOrders() {
+    const tbody = document.getElementById('orders-tbody');
+    tbody.innerHTML = '';
+    ORDERS.forEach((o, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="checkbox" ${o.checked ? 'checked' : ''} onchange="onOrderCheck(${i}, this)"></td>
+        <td>${o.type}</td>
+        <td class="link">${o.num}</td>
+        <td><span class="badge badge-new">${o.status}</span></td>
+        <td>${o.created}</td>
+        <td class="dash">--</td>
+        <td>${o.attr}</td>
+        <td>0</td>
+        <td>${o.source}</td>
+        <td>${o.bu}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function onOrderCheck(idx, cb) {
+    ORDERS[idx].checked = cb.checked;
+    updateOrdersToolbar();
+  }
+
+  function toggleSelectAll(masterCb) {
+    ORDERS.forEach(o => o.checked = masterCb.checked);
+    renderOrders();
+    updateOrdersToolbar();
+  }
+
+  function updateOrdersToolbar() {
+    const count = ORDERS.filter(o => o.checked).length;
+    const label = document.getElementById('orders-selected-label');
+    const btn   = document.getElementById('actions-toggle-btn');
+    if (count > 0) {
+      label.textContent = count + ' Row' + (count > 1 ? 's' : '') + ' Selected';
+      label.classList.remove('hidden');
+      btn.classList.remove('hidden');
+    } else {
+      label.classList.add('hidden');
+      btn.classList.add('hidden');
+      closeActionsMenu();
+    }
+  }
+
+  /* ==================== Tab switching ==================== */
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-profiles').classList.toggle('active', tab === 'profiles');
+    document.getElementById('tab-orders').classList.toggle('active',   tab === 'orders');
+    document.getElementById('left-nav').classList.toggle('hidden', tab !== 'profiles');
+    document.getElementById('screen-profiles').classList.toggle('active', tab === 'profiles');
+    document.getElementById('screen-orders').classList.toggle('active',   tab === 'orders');
+    document.getElementById('screen-results').classList.remove('active');
+  }
+
+  /* ==================== Actions dropdown ==================== */
+  function toggleActionsMenu() {
+    document.getElementById('actions-menu').classList.toggle('hidden');
+  }
+  function closeActionsMenu() {
+    document.getElementById('actions-menu').classList.add('hidden');
+  }
+
+  /* ==================== Modal helpers ==================== */
+  function openModal(modalId, profileName, ssccEnabled) {
+    // Fill profile-specific fields
+    if (modalId === 'modal-preview-profile') {
+      const data = PROFILE_DATA[profileName] || { desc: '—' };
+      document.getElementById('prev-profile-name').textContent = profileName;
+      document.getElementById('prev-profile-desc').textContent = data.desc;
+    }
+    if (modalId === 'modal-process-profile') {
+      const data = PROFILE_DATA[profileName] || { desc: '—' };
+      document.getElementById('proc-profile-name').textContent = profileName;
+      document.getElementById('proc-profile-desc').textContent = data.desc;
+      // Show/hide printer card based on SSCC config
+      document.getElementById('proc-profile-printer-card').classList.toggle('hidden', !ssccEnabled);
+    }
+    // Track results source for Cancel behavior
+    if (modalId === 'modal-preview-orders' || modalId === 'modal-process-orders') {
+      resultSource = 'orders';
+      closeActionsMenu();
+    } else {
+      resultSource = 'profiles';
+    }
+    document.getElementById(modalId).classList.remove('hidden');
+  }
+
+  function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+  }
+
+  /* ==================== Go to results screen ==================== */
+  function goToResults(fromModalId) {
+    closeModal(fromModalId);
+    // Determine profile name for breadcrumb
+    if (resultSource === 'profiles') {
+      const name = document.getElementById(
+        fromModalId === 'modal-preview-profile' ? 'prev-profile-name' : 'proc-profile-name'
+      ).textContent;
+      document.getElementById('results-profile-name').textContent = name;
+    } else {
+      document.getElementById('results-profile-name').textContent = 'Selected Orders';
+    }
+    // Show/hide footer printer — only for OFP Profile path
+    document.getElementById('results-footer-printer').classList.toggle('hidden', resultSource === 'orders');
+    // Hide both tab screens, show results
+    document.getElementById('screen-profiles').classList.remove('active');
+    document.getElementById('screen-orders').classList.remove('active');
+    document.getElementById('screen-results').classList.add('active');
+    // Hide the tab bar's active indicator while on results
+    document.getElementById('tab-profiles').classList.remove('active');
+    document.getElementById('tab-orders').classList.remove('active');
+    document.getElementById('left-nav').classList.add('hidden');
+  }
+
+  function cancelResults() {
+    document.getElementById('screen-results').classList.remove('active');
+    if (resultSource === 'orders') {
+      switchTab('orders');
+    } else {
+      switchTab('profiles');
+    }
+  }
+
+  /* ==================== Submit (process) ==================== */
+  function onModalPrinterChange(selectId, btnId) {
+    const val = document.getElementById(selectId).value;
+    document.getElementById(btnId).disabled = !val;
+  }
+
+  function onResultsPrinterChange() {
+    const val = document.getElementById('results-printer-select').value;
+    document.getElementById('results-process-btn').disabled = !val;
+  }
+
+  function submitProcess(modalId, printerSelectId) {
+    const printer = printerSelectId ? document.getElementById(printerSelectId).value : null;
+    closeModal(modalId);
+    showDone(printer);
+  }
+
+  function submitResults() {
+    const footerPrinter = document.getElementById('results-footer-printer');
+    if (!footerPrinter.classList.contains('hidden')) {
+      const printer = document.getElementById('results-printer-select').value;
+      if (!printer) {
+        document.getElementById('modal-no-printer').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('screen-results').classList.remove('active');
+      showDone(printer);
+    } else {
+      document.getElementById('screen-results').classList.remove('active');
+      showDone(null);
+    }
+  }
+
+  function showDone(printer) {
+    document.getElementById('done-printer-detail').textContent =
+      printer ? 'SSCC labels sent to: ' + printer : '';
+    document.getElementById('modal-done').classList.remove('hidden');
+  }
+
+  function closeDone() {
+    closeModal('modal-done');
+    if (resultSource === 'orders') {
+      switchTab('orders');
+    } else {
+      switchTab('profiles');
+    }
+  }
+
+  /* ==================== No-printer modal ==================== */
+  function onNoPrinterChange() {
+    const val = document.getElementById('no-printer-select').value;
+    document.getElementById('no-printer-confirm-btn').disabled = !val;
+  }
+
+  function confirmNoPrinter() {
+    const printer = document.getElementById('no-printer-select').value;
+    closeModal('modal-no-printer');
+    document.getElementById('screen-results').classList.remove('active');
+    showDone(printer);
+  }
+
+  // Close menus on click-outside
+  document.addEventListener('click', e => {
+    const dropdown = document.getElementById('actions-dropdown');
+    if (!dropdown.contains(e.target)) closeActionsMenu();
+  });
+</script>
+</body>
+</html>
